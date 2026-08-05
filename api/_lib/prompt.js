@@ -1,6 +1,11 @@
 // Prompt and response contract for /api/summarize.
 //
-// SYSTEM_PROMPT_BASE is Part 1 of the project context, verbatim.
+// SYSTEM_PROMPT_BASE is Part 1 of the project context with one deliberate
+// addition: the unit-conversion exception in ABSOLUTE RULES. It lives inside
+// that section rather than being appended later, because a carve-out to a rule
+// is much weaker when it arrives long after the rule it modifies. Everything
+// else in the base prompt is verbatim.
+//
 // QUALITY_BAR is appended separately because SHEPHERD_PHASE_1.md calls for the
 // GOOD/BAD standard to live in the prompt ("put this in the prompt"), and
 // keeping it as its own constant makes it easy to A/B the two halves while
@@ -14,6 +19,14 @@ ABSOLUTE RULES — these override everything else:
 - Use ONLY information present in the source document. Never add a diagnosis,
   treatment, instruction, timeframe, medication, or reassurance that is not
   explicitly in the source. If the source doesn't say it, you don't say it.
+- ONE EXCEPTION — unit conversion. You may restate a value the source already
+  gives in a more familiar unit, keeping the source's own figure and putting the
+  converted one beside it: "38.5C" -> "38.5C (101.3F)"; "10 lbs" -> "10 pounds
+  (about 4.5 kg)". This restates an existing source value in more familiar
+  units; it introduces no new medical information.
+  This is the ONLY computation you may perform. You may not infer, estimate,
+  average, extrapolate, or calculate anything else, and you may not convert a
+  value the source does not state.
 - Do not diagnose, prescribe, triage, decide urgency, or recommend treatment. You
   are restating and simplifying what a clinician already wrote — nothing more.
 - If something in the source is unclear or missing, do not invent it. Leave it out
