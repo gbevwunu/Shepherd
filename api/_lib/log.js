@@ -15,6 +15,9 @@ export function logEvent(event, fields = {}) {
     stopReason: fields.stopReason,
     inputTokens: fields.inputTokens,
     outputTokens: fields.outputTokens,
+    // PDF extraction: counts only, never extracted content.
+    pages: fields.pages,
+    chars: fields.chars,
   };
 
   for (const key of Object.keys(safe)) {

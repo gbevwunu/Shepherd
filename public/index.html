@@ -21,7 +21,7 @@
 
     <div class="controls">
       <label class="control">
-        <span class="control__label">Discharge summary</span>
+        <span class="control__label">Document</span>
         <select id="doc-select" class="control__input"></select>
       </label>
       <button id="summarize-btn" class="btn btn--primary" type="button">Summarize</button>
@@ -33,10 +33,40 @@
     <section class="panel" aria-labelledby="source-heading">
       <div class="panel__head">
         <h2 class="panel__title" id="source-heading">Source document</h2>
-        <p class="panel__sub">As written by the hospital</p>
+        <p class="panel__sub">As written by your clinician</p>
       </div>
       <div class="panel__body">
         <pre id="source-text" class="source-text" tabindex="0"></pre>
+
+        <!-- Shown only when "Paste or upload your own" is selected. -->
+        <div id="custom-source" class="custom-source is-hidden">
+          <p class="custom-source__warning">
+            <strong>Synthetic documents only.</strong> Do not paste real patient
+            information. Shepherd is a demo, not a cleared clinical system.
+          </p>
+
+          <label class="custom-source__label" for="custom-text">
+            Paste a document, or upload a PDF
+          </label>
+          <textarea
+            id="custom-text"
+            class="custom-source__input"
+            rows="12"
+            spellcheck="false"
+            placeholder="Paste the text of a fictional discharge summary, lab result, imaging report or clinic note…"
+          ></textarea>
+
+          <div class="custom-source__foot">
+            <label class="btn btn--ghost" for="custom-file" id="custom-file-label">Upload a PDF or text file</label>
+            <input
+              id="custom-file"
+              class="visually-hidden"
+              type="file"
+              accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
+            >
+            <span id="custom-count" class="custom-source__count" aria-live="polite"></span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -45,7 +75,7 @@
       <div class="panel__head">
         <div>
           <h2 class="panel__title" id="output-heading">Shepherd</h2>
-          <p class="panel__sub">The same document, rewritten</p>
+          <p class="panel__sub" id="output-sub">The same document, rewritten</p>
         </div>
         <div class="toggle" role="tablist" aria-label="Choose an audience">
           <button

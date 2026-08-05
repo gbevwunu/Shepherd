@@ -12,6 +12,18 @@
       "label": "Discharge summary — appendectomy",
       "synthetic": true,
       "sourceText": "DISCHARGE SUMMARY — SYNTHETIC / FICTIONAL\nPatient: Priya S. (SYNTH-002)   MRN: 000-SYN-002\nAdmit: 2026-05-11   Discharge: 2026-05-13\n\nDx: Acute appendicitis, s/p laparoscopic appendectomy.\nHPI: 29 y/o pt w/ 18h RLQ pain, anorexia, low-grade fever. CT abd/pelvis: dilated\nappendix w/ periappendiceal fat stranding, no perforation. Taken to OR same day.\nProcedure: Laparoscopic appendectomy, uncomplicated. EBL minimal. Appendix sent to\npath (pending at d/c).\nPost-op course: Advanced to regular diet, tolerated. Pain controlled on PO\nanalgesia. Ambulating. Voiding spontaneously. No fever post-op.\nDischarge meds: Acetaminophen 500mg PO q6h PRN. Ibuprofen 400mg PO q8h PRN. Hold\nNSAIDs if GI upset.\nActivity: No heavy lifting >10 lbs x2 wks. May shower; keep incisions clean/dry.\nFollow-up: Surgery clinic in 10-14d for wound check + path results. RTC/ED for\nfever >38.5C, worsening abd pain, redness/drainage at incision sites, or\nintractable vomiting.\n"
+    },
+    {
+      "id": "SYNTH-LAB-003",
+      "label": "Blood test result — CBC and metabolic panel",
+      "synthetic": true,
+      "sourceText": "LABORATORY REPORT — SYNTHETIC / FICTIONAL\nPatient: Sam T. (SYNTH-003)   MRN: 000-SYN-003\nCollected: 2026-06-14 08:20   Reported: 2026-06-15 07:05\nOrdering provider: Dr. A. Okafor, Family Medicine\n\nCOMPLETE BLOOD COUNT\nTest                 Result    Ref range            Flag\nWBC                  14.2      4.0-11.0 x10^9/L     H\nHemoglobin           11.1      13.5-17.5 g/dL       L\nHematocrit           34.2      41.0-53.0 %          L\nPlatelets            265       150-400 x10^9/L\nNeutrophils          78        40-70 %              H\n\nBASIC METABOLIC PANEL\nSodium               139       135-145 mmol/L\nPotassium            4.1       3.5-5.1 mmol/L\nCreatinine           0.9       0.6-1.3 mg/dL\neGFR                 >90       >60 mL/min/1.73m2\n\nComment: Repeat CBC in 2 weeks. Results conveyed to ordering provider.\n"
+    },
+    {
+      "id": "SYNTH-IMAGING-004",
+      "label": "Imaging report — CT chest",
+      "synthetic": true,
+      "sourceText": "DIAGNOSTIC IMAGING REPORT — SYNTHETIC / FICTIONAL\nPatient: Rae M. (SYNTH-004)   MRN: 000-SYN-004\nExam: CT CHEST W/O CONTRAST      Date: 2026-07-02\nReferring: Dr. L. Nwosu        Radiologist: Dr. P. Adeyemi\n\nCLINICAL HISTORY: Incidental finding on prior CXR. Non-smoker.\n\nTECHNIQUE: Axial images of the chest without IV contrast.\n\nFINDINGS:\nLungs: 4 mm solid nodule, right upper lobe, anterior segment. No other\nnodules. No consolidation. No pleural effusion.\nMediastinum: No lymphadenopathy. Heart size normal.\nBones: No acute osseous abnormality.\n\nIMPRESSION:\n1. Solitary 4 mm solid right upper lobe pulmonary nodule.\n2. Per Fleischner Society guidance cited by referring service, no routine\n   follow-up imaging indicated for a solid nodule <6 mm in a low-risk\n   patient. Follow-up at the discretion of the referring clinician.\n\nReport electronically signed 2026-07-02.\n"
     }
   ]
 }
