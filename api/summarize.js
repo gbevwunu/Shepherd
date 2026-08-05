@@ -20,6 +20,7 @@ import {
   isJsonRequest,
 } from './_lib/http.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
+import { resolveApiKey } from './_lib/config.js';
 
 const MODEL = 'claude-opus-5';
 const MAX_TOKENS = 16000;
@@ -105,11 +106,13 @@ export default async function handler(req, res) {
     });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const { key: apiKey } = resolveApiKey();
   if (!apiKey) {
     logEvent('summarize', { documentId, outcome: 'no_api_key' });
     return res.status(503).json({
-      error: 'The summarizer is not configured on the server. No AI key is set.',
+      error:
+        'The summarizer is not configured on the server. No AI key is set. ' +
+        'Check /api/health to see what the server can and cannot find.',
     });
   }
 

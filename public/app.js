@@ -17,7 +17,19 @@ const els = {
   sourceText: document.getElementById('source-text'),
   outputBody: document.getElementById('output-body'),
   tabs: Array.from(document.querySelectorAll('.toggle__btn')),
+  customSource: document.getElementById('custom-source'),
+  customText: document.getElementById('custom-text'),
+  customFile: document.getElementById('custom-file'),
+  customCount: document.getElementById('custom-count'),
 };
+
+// Sentinel for the "paste or upload your own" option in the picker. Not a real
+// document id — resolveRequest() swaps it for one the server will accept.
+const CUSTOM_ID = '__custom__';
+
+// Mirrors the server's cap so an oversized paste is caught here, with a useful
+// message, instead of making a round trip to be rejected.
+const MAX_SOURCE_TEXT = 20000;
 
 const state = {
   documents: [],
@@ -26,6 +38,9 @@ const state = {
   view: 'patient',
   loading: false,
   error: null,
+  // Held in memory only for the current page view. Never written to storage,
+  // never sent anywhere except the summarize request the user asks for.
+  customText: '',
 };
 
 /* ------------------------------------------------------------------ *
@@ -57,8 +72,15 @@ async function loadDocuments() {
 }
 
 async function summarize() {
-  const doc = activeDoc();
-  if (!doc || state.loading) return;
+  if (state.loading) return;
+
+  const request = resolveRequest();
+  if (request.error) {
+    state.error = request.error;
+    state.result = null;
+    renderOutput();
+    return;
+  }
 
   state.loading = true;
   state.error = null;
@@ -71,7 +93,7 @@ async function summarize() {
     const res = await fetch('/api/summarize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ documentId: doc.id, sourceText: doc.sourceText }),
+      body: JSON.stringify(request),
     });
 
     const data = await res.json().catch(() => null);
@@ -99,6 +121,30 @@ function activeDoc() {
   return state.documents.find((d) => d.id === state.activeDocId) || null;
 }
 
+function isCustomMode() {
+  return state.activeDocId === CUSTOM_ID;
+}
+
+// Produces the request body, or an error message to show instead of sending.
+function resolveRequest() {
+  if (isCustomMode()) {
+    const text = state.customText.trim();
+    if (text === '') {
+      return { error: 'Paste a discharge summary, or upload a text file, before summarizing.' };
+    }
+    if (text.length > MAX_SOURCE_TEXT) {
+      return {
+        error: `That document is ${text.length.toLocaleString()} characters. The limit is ${MAX_SOURCE_TEXT.toLocaleString()}.`,
+      };
+    }
+    return { documentId: 'CUSTOM-PASTED', sourceText: text };
+  }
+
+  const doc = activeDoc();
+  if (!doc) return { error: 'Choose a document first.' };
+  return { documentId: doc.id, sourceText: doc.sourceText };
+}
+
 /* ------------------------------------------------------------------ *
  * Render — controls and source panel
  * ------------------------------------------------------------------ */
@@ -113,12 +159,36 @@ function renderDocOptions() {
     els.docSelect.append(opt);
   }
 
+  const custom = document.createElement('option');
+  custom.value = CUSTOM_ID;
+  custom.textContent = 'Paste or upload your own…';
+  els.docSelect.append(custom);
+
   els.docSelect.value = state.activeDocId;
 }
 
 function renderSource() {
+  const custom = isCustomMode();
+
+  els.sourceText.classList.toggle('is-hidden', custom);
+  els.customSource.classList.toggle('is-hidden', !custom);
+
+  if (custom) {
+    els.customText.value = state.customText;
+    renderCustomCount();
+    return;
+  }
+
   const doc = activeDoc();
   els.sourceText.textContent = doc ? doc.sourceText : '';
+}
+
+function renderCustomCount() {
+  const length = state.customText.trim().length;
+  const over = length > MAX_SOURCE_TEXT;
+  els.customCount.textContent =
+    `${length.toLocaleString()} / ${MAX_SOURCE_TEXT.toLocaleString()} characters`;
+  els.customCount.classList.toggle('is-over', over);
 }
 
 /* ------------------------------------------------------------------ *
@@ -369,6 +439,36 @@ els.docSelect.addEventListener('change', () => {
   state.error = null;
   renderSource();
   renderOutput();
+});
+
+els.customText.addEventListener('input', () => {
+  state.customText = els.customText.value;
+  state.error = null;
+  renderCustomCount();
+});
+
+// Text files only. Read in the browser and dropped into the same textarea, so
+// an uploaded document takes exactly the same path as a pasted one — including
+// rendering as text, never as markup.
+els.customFile.addEventListener('change', async () => {
+  const file = els.customFile.files && els.customFile.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    state.customText = text;
+    els.customText.value = text;
+    state.result = null;
+    state.error = null;
+    renderCustomCount();
+    renderOutput();
+  } catch {
+    state.error = 'That file could not be read. Try pasting the text instead.';
+    renderOutput();
+  } finally {
+    // Clear so selecting the same file again still fires a change event.
+    els.customFile.value = '';
+  }
 });
 
 els.summarizeBtn.addEventListener('click', summarize);
