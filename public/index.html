@@ -15,7 +15,11 @@
 
   <header class="site-header">
     <div class="site-header__titles">
-      <h1>Shepherd</h1>
+      <div class="brand-line">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span class="eyebrow">Healthcare 2 Demo</span>
+      </div>
+      <h1>SHEPHERD</h1>
       <p class="tagline">Plain-language summaries of medical documents, plus key highlights for clinicians.</p>
     </div>
 
@@ -28,11 +32,44 @@
     </div>
   </header>
 
+  <section class="demo-strip" aria-label="SHEPHERD output flow">
+    <div class="demo-step">
+      <span class="demo-step__number">01</span>
+      <span>Complex source report</span>
+    </div>
+    <div class="demo-step">
+      <span class="demo-step__number">02</span>
+      <span>Patient-friendly rewrite</span>
+    </div>
+    <div class="demo-step">
+      <span class="demo-step__number">03</span>
+      <span>Clinician highlights</span>
+    </div>
+  </section>
+
+  <section class="trust-strip" aria-label="SHEPHERD safety boundaries">
+    <div class="trust-item">
+      <span class="trust-item__label">Source-only</span>
+      <span>Summaries stay tied to the provided document.</span>
+    </div>
+    <div class="trust-item">
+      <span class="trust-item__label">No diagnosis</span>
+      <span>AI explains existing content, not medical decisions.</span>
+    </div>
+    <div class="trust-item">
+      <span class="trust-item__label">Demo-safe</span>
+      <span>All reports are fictional and synthetic.</span>
+    </div>
+  </section>
+
   <main class="workspace">
     <!-- BEFORE -->
     <section class="panel" aria-labelledby="source-heading">
       <div class="panel__head">
-        <h2 class="panel__title" id="source-heading">Source document</h2>
+        <div>
+          <span class="panel-kicker">Before</span>
+          <h2 class="panel__title" id="source-heading">Source document</h2>
+        </div>
         <p class="panel__sub">As written by your clinician</p>
       </div>
       <div class="panel__body">
@@ -74,8 +111,12 @@
     <section class="panel panel--output" aria-labelledby="output-heading">
       <div class="panel__head">
         <div>
+          <span class="panel-kicker">After</span>
           <h2 class="panel__title" id="output-heading">Shepherd</h2>
-          <p class="panel__sub" id="output-sub">The same document, rewritten</p>
+          <div class="output-meta">
+            <p class="panel__sub" id="output-sub">The same document, rewritten</p>
+            <span class="status-pill">Source-bound workflow</span>
+          </div>
         </div>
         <div class="toggle" role="tablist" aria-label="Choose an audience">
           <button
