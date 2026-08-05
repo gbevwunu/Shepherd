@@ -11,6 +11,7 @@
 
 export const FIXTURES = {
   'SYNTH-DISCHARGE-001': {
+    documentType: 'hospital discharge summary',
     patientSummary: [
       'You were in the hospital because you had a lung infection called pneumonia. It was in the lower part of your right lung.',
       '',
@@ -76,6 +77,7 @@ export const FIXTURES = {
   },
 
   'SYNTH-DISCHARGE-002': {
+    documentType: 'hospital discharge summary',
     patientSummary: [
       'You were in the hospital because your appendix was inflamed and infected. This is called appendicitis. You had surgery to remove it.',
       '',

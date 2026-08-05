@@ -218,6 +218,12 @@ export default async function handler(req, res) {
 function normalize(parsed) {
   if (!parsed || typeof parsed !== 'object') return null;
   if (typeof parsed.patientSummary !== 'string' || parsed.patientSummary.trim() === '') return null;
+  // documentType is informational, so a missing one falls back rather than
+  // failing an otherwise good summary.
+  const documentType =
+    typeof parsed.documentType === 'string' && parsed.documentType.trim() !== ''
+      ? parsed.documentType.trim()
+      : 'medical document';
   if (!Array.isArray(parsed.clinicianHighlights)) return null;
 
   const clinicianHighlights = parsed.clinicianHighlights
@@ -234,7 +240,7 @@ function normalize(parsed) {
       )
     : [];
 
-  return { patientSummary: parsed.patientSummary, clinicianHighlights, glossary };
+  return { documentType, patientSummary: parsed.patientSummary, clinicianHighlights, glossary };
 }
 
 // Maps upstream failures onto clean client-facing messages. No stack traces, no

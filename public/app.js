@@ -21,6 +21,8 @@ const els = {
   customText: document.getElementById('custom-text'),
   customFile: document.getElementById('custom-file'),
   customCount: document.getElementById('custom-count'),
+  customFileLabel: document.getElementById('custom-file-label'),
+  outputSub: document.getElementById('output-sub'),
 };
 
 // Sentinel for the "paste or upload your own" option in the picker. Not a real
@@ -130,7 +132,7 @@ function resolveRequest() {
   if (isCustomMode()) {
     const text = state.customText.trim();
     if (text === '') {
-      return { error: 'Paste a discharge summary, or upload a text file, before summarizing.' };
+      return { error: 'Paste a document, or upload a PDF or text file, before summarizing.' };
     }
     if (text.length > MAX_SOURCE_TEXT) {
       return {
@@ -209,11 +211,17 @@ function renderOutput() {
   }
 
   if (!state.result) {
+    els.outputSub.textContent = 'The same document, rewritten';
     els.outputBody.append(
       buildPlaceholder('Select Summarize to see this document in plain language.')
     );
     return;
   }
+
+  const detected = state.result.documentType;
+  els.outputSub.textContent = detected
+    ? `Detected: ${detected}`
+    : 'The same document, rewritten';
 
   const wrap = document.createElement('div');
   wrap.className = 'output';
@@ -447,29 +455,91 @@ els.customText.addEventListener('input', () => {
   renderCustomCount();
 });
 
-// Text files only. Read in the browser and dropped into the same textarea, so
-// an uploaded document takes exactly the same path as a pasted one — including
-// rendering as text, never as markup.
+// Text files are read in the browser. PDFs go to /api/extract, and the text
+// comes back into the same textarea — so an uploaded document takes an
+// identical path to a pasted one, and the user sees exactly what will be sent
+// before sending it.
 els.customFile.addEventListener('change', async () => {
   const file = els.customFile.files && els.customFile.files[0];
+  els.customFile.value = ''; // so re-selecting the same file still fires
   if (!file) return;
 
+  const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+  const isText = /\.(txt|md|text)$/i.test(file.name) || /^text\//.test(file.type);
+
+  // Anything that is neither a PDF nor plain text is refused outright. Reading
+  // an image or a .docx as text would fill the box with binary garbage and look
+  // like a bug rather than an unsupported format.
+  if (!isPdf && !isText) {
+    state.error =
+      'That file type is not supported. Upload a PDF or a plain text file, ' +
+      'or paste the text directly.';
+    renderOutput();
+    return;
+  }
+
+  setFileBusy(true);
+  state.error = null;
+
   try {
-    const text = await file.text();
+    const text = isPdf ? await extractPdf(file) : await file.text();
     state.customText = text;
     els.customText.value = text;
     state.result = null;
-    state.error = null;
     renderCustomCount();
-    renderOutput();
-  } catch {
-    state.error = 'That file could not be read. Try pasting the text instead.';
-    renderOutput();
+  } catch (err) {
+    state.error =
+      err && err.message
+        ? err.message
+        : 'That file could not be read. Try pasting the text instead.';
   } finally {
-    // Clear so selecting the same file again still fires a change event.
-    els.customFile.value = '';
+    setFileBusy(false);
+    renderOutput();
   }
 });
+
+function setFileBusy(busy) {
+  els.customFileLabel.textContent = busy ? 'Reading…' : 'Upload a PDF or text file';
+  els.customFileLabel.classList.toggle('is-busy', busy);
+}
+
+// Sends the PDF as base64 and gets plain text back. Extraction runs on the
+// server so no PDF library has to be vendored into the page, which keeps the
+// frontend dependency-free and the CSP strict.
+async function extractPdf(file) {
+  const buffer = await file.arrayBuffer();
+
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const CHUNK = 0x8000; // chunked so a large file cannot blow the call stack
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+
+  const res = await fetch('/api/extract', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: file.name, dataBase64: btoa(binary) }),
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    throw new Error(
+      (data && typeof data.error === 'string' && data.error) ||
+        `That PDF could not be read (${res.status}).`
+    );
+  }
+  if (!data || typeof data.text !== 'string') {
+    throw new Error('The server returned an unexpected response for that PDF.');
+  }
+  if (data.truncated) {
+    state.error =
+      `That PDF was longer than the ${MAX_SOURCE_TEXT.toLocaleString()}-character limit, ` +
+      'so only the beginning was kept. Check the text before summarizing.';
+  }
+  return data.text;
+}
 
 els.summarizeBtn.addEventListener('click', summarize);
 
