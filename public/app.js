@@ -261,6 +261,9 @@ function renderPatientSummary(parent, text, glossary) {
 
   let paragraph = [];
   let listItems = [];
+  let activeSection = null;
+
+  const sectionTarget = () => activeSection || parent;
 
   const flushParagraph = () => {
     if (paragraph.length === 0) return;
@@ -269,15 +272,21 @@ function renderPatientSummary(parent, text, glossary) {
     if (block === '') return;
 
     if (isHeading(block)) {
+      activeSection = document.createElement('section');
+      activeSection.className = 'summary-section';
       const h = document.createElement('h3');
       h.textContent = block;
-      parent.append(h);
+      activeSection.append(h);
+      parent.append(activeSection);
       return;
     }
 
     const p = document.createElement('p');
+    if (!activeSection && parent.querySelector('p') === null) {
+      p.className = 'summary-lead';
+    }
     appendTextWithTerms(p, block, terms);
-    parent.append(p);
+    sectionTarget().append(p);
   };
 
   const flushList = () => {
@@ -289,7 +298,7 @@ function renderPatientSummary(parent, text, glossary) {
       ul.append(li);
     }
     listItems = [];
-    parent.append(ul);
+    sectionTarget().append(ul);
   };
 
   for (const rawLine of lines) {
