@@ -277,7 +277,10 @@ function renderOutput() {
     wrap.classList.add('output--patient');
     const ungrounded = ungroundedClaims();
     const matched = new Set();
-    wrap.append(buildGroundingStatus(ungrounded.length));
+    // The status strip goes in the panel, not inside .output. renderPatientSummary
+    // marks its first paragraph as the lead by checking that no <p> exists in its
+    // parent yet, and a status <p> in there would suppress that styling forever.
+    els.outputBody.append(buildGroundingStatus(ungrounded.length));
     renderPatientSummary(wrap, state.result.patientSummary, state.result.glossary, ungrounded, matched);
     const missed = ungrounded.filter((c) => !matched.has(c));
     if (missed.length > 0) wrap.append(buildUnplacedClaims(missed));
@@ -406,6 +409,9 @@ function renderPatientSummary(parent, text, glossary, ungrounded = [], matched =
 
   let paragraph = [];
   let listItems = [];
+  let activeSection = null;
+
+  const sectionTarget = () => activeSection || parent;
 
   const flushParagraph = () => {
     if (paragraph.length === 0) return;
@@ -414,15 +420,21 @@ function renderPatientSummary(parent, text, glossary, ungrounded = [], matched =
     if (block === '') return;
 
     if (isHeading(block)) {
+      activeSection = document.createElement('section');
+      activeSection.className = 'summary-section';
       const h = document.createElement('h3');
       h.textContent = block;
-      parent.append(h);
+      activeSection.append(h);
+      parent.append(activeSection);
       return;
     }
 
     const p = document.createElement('p');
+    if (!activeSection && parent.querySelector('p') === null) {
+      p.className = 'summary-lead';
+    }
     appendTextWithClaims(p, block, terms, ungrounded, matched);
-    parent.append(p);
+    sectionTarget().append(p);
   };
 
   const flushList = () => {
@@ -434,7 +446,7 @@ function renderPatientSummary(parent, text, glossary, ungrounded = [], matched =
       ul.append(li);
     }
     listItems = [];
-    parent.append(ul);
+    sectionTarget().append(ul);
   };
 
   for (const rawLine of lines) {
