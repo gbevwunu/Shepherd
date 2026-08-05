@@ -487,3 +487,94 @@ body {
   opacity: 0.6;
   pointer-events: none;
 }
+
+/* ---------- Phase 2.1 — source grounding ---------- */
+
+.grounding-status {
+  margin: 0 0 1.1rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.grounding-status--pending {
+  background: var(--surface-alt);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.grounding-status--clear {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);           /* 8.4:1 on --accent-soft */
+}
+
+.grounding-status--flagged {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--warn-text);        /* 8.6:1 on --warn-bg */
+  font-weight: 600;
+}
+
+.grounding-status--failed {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);      /* 9.2:1 on --danger-bg */
+}
+
+/* An ungrounded claim. Colour is not the only cue: the underline is a second
+   visual signal (4.9:1 against the highlight), and aria-label carries the
+   meaning for anyone not seeing either. Text on the amber is 10.8:1. */
+.claim--ungrounded {
+  background: #fce3b2;
+  color: #3d2c00;
+  border-bottom: 2px solid #8a5600;
+  border-radius: 2px;
+  padding: 0.05em 0.12em;
+  cursor: help;
+}
+
+.claim--ungrounded:hover,
+.claim--ungrounded:focus-visible {
+  background: #f9d68d;
+}
+
+/* Glossary terms keep working inside a flagged claim; the dotted accent
+   underline would clash with the amber one, so it is dropped there. */
+.claim--ungrounded .term {
+  border-bottom: none;
+}
+
+.unplaced {
+  margin-top: 1.75rem;
+  padding: 0.9rem 1rem;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--radius);
+  color: var(--warn-text);
+}
+
+.unplaced h3 {
+  margin: 0 0 0.35rem;
+  color: var(--warn-text);
+  font-size: 0.8125rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.unplaced__note {
+  margin: 0 0 0.6rem;
+  font-size: 0.8125rem;
+}
+
+.unplaced ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.9375rem;
+}
+
+.unplaced__reason {
+  font-style: italic;
+}
