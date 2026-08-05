@@ -1,0 +1,17 @@
+{
+  "notice": "SYNTHETIC DEMO DATA — NOT A REAL PATIENT. Every document below is fictional. Names, dates, MRNs, and clinical details are invented for demonstration purposes only.",
+  "documents": [
+    {
+      "id": "SYNTH-DISCHARGE-001",
+      "label": "Discharge summary — pneumonia",
+      "synthetic": true,
+      "sourceText": "DISCHARGE SUMMARY — SYNTHETIC / FICTIONAL\nPatient: Jordan A. (SYNTH-001)   MRN: 000-SYN-001\nAdmit: 2026-03-02   Discharge: 2026-03-06\n\nDx: Community-acquired pneumonia, RLL.\nHPI: 54 y/o pt presented w/ 4d productive cough, febrile to 38.9C, pleuritic chest\npain, SOB on exertion. CXR confirmed RLL consolidation. WBC 14.2. SpO2 92% RA on\nadmission.\nHospital course: Started on IV ceftriaxone + azithromycin. Afebrile x48h prior to\nd/c. SpO2 improved to 97% RA. Tolerating PO. Ambulating independently.\nDischarge meds: PO amoxicillin-clavulanate 875/125 BID x5d. Continue home\nlisinopril 10mg daily.\nDischarge condition: Stable, afebrile.\nFollow-up: PCP in 7d. Repeat CXR in ~4-6 wks to confirm resolution. RTC/ED if\nworsening dyspnea, fever >38.5C, or hemoptysis.\n"
+    },
+    {
+      "id": "SYNTH-DISCHARGE-002",
+      "label": "Discharge summary — appendectomy",
+      "synthetic": true,
+      "sourceText": "DISCHARGE SUMMARY — SYNTHETIC / FICTIONAL\nPatient: Priya S. (SYNTH-002)   MRN: 000-SYN-002\nAdmit: 2026-05-11   Discharge: 2026-05-13\n\nDx: Acute appendicitis, s/p laparoscopic appendectomy.\nHPI: 29 y/o pt w/ 18h RLQ pain, anorexia, low-grade fever. CT abd/pelvis: dilated\nappendix w/ periappendiceal fat stranding, no perforation. Taken to OR same day.\nProcedure: Laparoscopic appendectomy, uncomplicated. EBL minimal. Appendix sent to\npath (pending at d/c).\nPost-op course: Advanced to regular diet, tolerated. Pain controlled on PO\nanalgesia. Ambulating. Voiding spontaneously. No fever post-op.\nDischarge meds: Acetaminophen 500mg PO q6h PRN. Ibuprofen 400mg PO q8h PRN. Hold\nNSAIDs if GI upset.\nActivity: No heavy lifting >10 lbs x2 wks. May shower; keep incisions clean/dry.\nFollow-up: Surgery clinic in 10-14d for wound check + path results. RTC/ED for\nfever >38.5C, worsening abd pain, redness/drainage at incision sites, or\nintractable vomiting.\n"
+    }
+  ]
+}
