@@ -1,70 +1,359 @@
+/* Shepherd — calm, clinical, high contrast.
+   Colour pairs below are chosen to clear WCAG AA (4.5:1 for body text,
+   3:1 for large text and UI borders). */
+
 :root {
-  --bg: #f7f8fa;
+  --bg: #f4f6f8;
   --surface: #ffffff;
-  --text: #1c2126;
-  --muted: #5c6672;
-  --border: #dde2e8;
-  --warn-bg: #fff4d6;
-  --warn-border: #e0b83c;
-  --warn-text: #6b4e00;
-  --max-width: 56rem;
+  --surface-alt: #eef1f5;
+
+  --text: #16191d;          /* 15.9:1 on --surface */
+  --muted: #4d5763;         /* 7.4:1 on --surface  */
+  /* Decorative separator. Panels are also distinguished by their background
+     fill, so this is not the sole identifier of a component and WCAG 1.4.11
+     does not require 3:1 of it. */
+  --border: #cdd5de;
+
+  /* Boundaries of interactive controls (select, toggle). These DO identify a
+     component, so they clear WCAG 1.4.11's 3:1 against every background they
+     sit on: 3.70:1 on white, 3.42:1 on the page background, 3.27:1 on the
+     source panel head, 3.14:1 on the accent-tinted output panel head. */
+  --border-interactive: #798697;
+
+  --accent: #14524b;        /* 9.4:1 on --surface  */
+  --accent-ink: #ffffff;
+  --accent-soft: #e3efec;
+
+  --warn-bg: #fdf0cf;
+  --warn-border: #b98900;
+  --warn-text: #57430a;     /* 8.6:1 on --warn-bg  */
+
+  --danger-bg: #fdeceb;
+  --danger-border: #b3261e;
+  --danger-text: #7a1c17;
+
+  --radius: 10px;
+  --max-width: 84rem;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.55;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
-/* Safety badge — sticky so it stays visible while scrolling. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Safety badge: sticky, never scrolls away ---------- */
+
 .synthetic-badge {
   position: sticky;
   top: 0;
-  z-index: 10;
-  padding: 0.6rem 1rem;
+  z-index: 20;
+  padding: 0.55rem 1rem;
   background: var(--warn-bg);
-  border-bottom: 1px solid var(--warn-border);
+  border-bottom: 2px solid var(--warn-border);
   color: var(--warn-text);
   font-size: 0.8125rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-align: center;
 }
 
+/* ---------- Header ---------- */
+
 .site-header,
-main,
+.workspace,
 .site-footer {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 0 1.25rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
 }
 
 .site-header {
-  padding-top: 2rem;
-  padding-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding-top: 1.75rem;
+  padding-bottom: 1.25rem;
 }
 
 .site-header h1 {
   margin: 0;
-  font-size: 1.875rem;
-  letter-spacing: -0.01em;
+  font-size: 1.75rem;
+  letter-spacing: -0.015em;
 }
 
 .tagline {
-  margin: 0.35rem 0 0;
+  margin: 0.25rem 0 0;
+  max-width: 46ch;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.control__label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.control__input {
+  min-width: 18rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.btn {
+  padding: 0.6rem 1.25rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: #0f3f39;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---------- Two-panel before/after ---------- */
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  padding-bottom: 2rem;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+}
+
+.panel--output .panel__head {
+  background: var(--accent-soft);
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+
+.panel__sub {
+  margin: 0.1rem 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.panel__body {
+  padding: 1.15rem;
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+/* ---------- Source (before) ---------- */
+
+.source-text {
+  margin: 0;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Toggle ---------- */
+
+.toggle {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border-interactive);
+  border-radius: 999px;
+}
+
+.toggle__btn {
+  padding: 0.35rem 0.85rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggle__btn.is-active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- Output ---------- */
+
+.output p {
+  margin: 0 0 0.85rem;
+  max-width: 62ch;
+}
+
+.output h3 {
+  margin: 1.4rem 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.output h3:first-child {
+  margin-top: 0;
+}
+
+.output ul {
+  margin: 0 0 0.9rem;
+  padding-left: 1.15rem;
+  max-width: 62ch;
+}
+
+.output li {
+  margin-bottom: 0.4rem;
+}
+
+.output--patient {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+
+.highlights {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.9375rem;
+}
+
+.highlights li {
+  margin-bottom: 0.55rem;
+}
+
+/* Glossary term — hover or focus for the plain-language definition. */
+.term {
+  border-bottom: 1px dotted var(--accent);
+  cursor: help;
+}
+
+.glossary {
+  margin-top: 1.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.glossary h3 {
+  margin-top: 0;
+}
+
+.glossary dl {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.glossary dt {
+  font-weight: 700;
+}
+
+.glossary dd {
+  margin: 0 0 0.6rem;
   color: var(--muted);
 }
 
-main {
-  min-height: 12rem;
-  padding-bottom: 2rem;
+/* ---------- States ---------- */
+
+.placeholder {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
 }
+
+.error {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius);
+  color: var(--danger-text);
+  font-size: 0.9375rem;
+}
+
+.is-hidden {
+  display: none;
+}
+
+/* ---------- Footer ---------- */
 
 .site-footer {
   padding-top: 1.25rem;
@@ -76,4 +365,40 @@ main {
 
 .site-footer p {
   margin: 0;
+  max-width: 80ch;
+}
+
+/* ---------- Tablet and narrow laptop ---------- */
+
+@media (max-width: 62rem) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .panel__body {
+    max-height: none;
+  }
+
+  .site-header {
+    align-items: flex-start;
+  }
+
+  .controls {
+    width: 100%;
+  }
+
+  .control {
+    flex: 1;
+  }
+
+  .control__input {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
