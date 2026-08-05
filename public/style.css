@@ -9,7 +9,16 @@
 
   --text: #16191d;          /* 15.9:1 on --surface */
   --muted: #4d5763;         /* 7.4:1 on --surface  */
+  /* Decorative separator. Panels are also distinguished by their background
+     fill, so this is not the sole identifier of a component and WCAG 1.4.11
+     does not require 3:1 of it. */
   --border: #cdd5de;
+
+  /* Boundaries of interactive controls (select, toggle). These DO identify a
+     component, so they clear WCAG 1.4.11's 3:1 against every background they
+     sit on: 3.70:1 on white, 3.42:1 on the page background, 3.27:1 on the
+     source panel head, 3.14:1 on the accent-tinted output panel head. */
+  --border-interactive: #798697;
 
   --accent: #14524b;        /* 9.4:1 on --surface  */
   --accent-ink: #ffffff;
@@ -122,7 +131,7 @@ body {
 .control__input {
   min-width: 18rem;
   padding: 0.55rem 0.7rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-interactive);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
@@ -226,7 +235,7 @@ body {
   display: inline-flex;
   padding: 3px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-interactive);
   border-radius: 999px;
 }
 

@@ -13,6 +13,13 @@ import Anthropic from '@anthropic-ai/sdk';
 import { SYSTEM_PROMPT, buildUserMessage, RESPONSE_SCHEMA } from './_lib/prompt.js';
 import { FIXTURES } from './_lib/fixtures.js';
 import { logEvent } from './_lib/log.js';
+import {
+  applySecurityHeaders,
+  isSameOrigin,
+  isBodyTooLarge,
+  isJsonRequest,
+} from './_lib/http.js';
+import { checkRateLimit } from './_lib/rate-limit.js';
 
 const MODEL = 'claude-opus-5';
 const MAX_TOKENS = 16000;
@@ -25,6 +32,11 @@ const EFFORT = process.env.SHEPHERD_EFFORT || 'medium';
 
 const MAX_SOURCE_TEXT = 20000;
 
+// Ceiling on the whole request body, checked from Content-Length before the
+// parsed body is inspected. Generous next to the 20k text cap so a legitimate
+// request is never caught by it.
+const MAX_BODY_BYTES = 64 * 1024;
+
 // Client timeout is set well inside the function's maxDuration (60s in
 // vercel.json) so a slow upstream call fails with a clean message rather than
 // being killed mid-flight. One retry: 25s x 2 attempts stays under the ceiling.
@@ -32,9 +44,23 @@ const REQUEST_TIMEOUT_MS = 25000;
 const MAX_RETRIES = 1;
 
 export default async function handler(req, res) {
+  applySecurityHeaders(res);
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed. Use POST.' });
+  }
+
+  if (!isSameOrigin(req)) {
+    return res.status(403).json({ error: 'Cross-origin requests are not allowed.' });
+  }
+
+  if (isBodyTooLarge(req, MAX_BODY_BYTES)) {
+    return res.status(413).json({ error: 'Request body is too large.' });
+  }
+
+  if (!isJsonRequest(req)) {
+    return res.status(415).json({ error: 'Content-Type must be application/json.' });
   }
 
   const body = req.body ?? {};
@@ -65,6 +91,18 @@ export default async function handler(req, res) {
     logEvent('summarize', { documentId, outcome: 'fixture' });
     res.setHeader('X-Shepherd-Stub', '1');
     return res.status(200).json(fixture);
+  }
+
+  // Rate limit guards the model call specifically, so it sits after validation
+  // and after the offline-fixtures path: a malformed request is cheap and
+  // should not spend a legitimate user's budget, and fixtures cost nothing.
+  const limit = checkRateLimit(req);
+  if (!limit.allowed) {
+    res.setHeader('Retry-After', String(limit.retryAfterSeconds));
+    logEvent('summarize', { documentId, outcome: 'rate_limited', status: 429 });
+    return res.status(429).json({
+      error: 'Too many requests. Wait a moment and try again.',
+    });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

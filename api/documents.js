@@ -13,13 +13,21 @@
 
 import { createRequire } from 'node:module';
 
+import { applySecurityHeaders, isSameOrigin } from './_lib/http.js';
+
 const require = createRequire(import.meta.url);
 const seed = require('../data/seed.json');
 
 export default async function handler(req, res) {
+  applySecurityHeaders(res);
+
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed. Use GET.' });
+  }
+
+  if (!isSameOrigin(req)) {
+    return res.status(403).json({ error: 'Cross-origin requests are not allowed.' });
   }
 
   return res.status(200).json({
