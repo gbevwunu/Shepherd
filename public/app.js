@@ -43,6 +43,11 @@ const state = {
   // Held in memory only for the current page view. Never written to storage,
   // never sent anywhere except the summarize request the user asks for.
   customText: '',
+  // Phase 2.1. Null until the grounding check returns. Kept separate from
+  // state.result so a grounding failure can never affect whether the summary
+  // renders.
+  grounding: null,
+  groundingStatus: 'idle', // idle | checking | done | failed
 };
 
 /* ------------------------------------------------------------------ *
@@ -87,6 +92,7 @@ async function summarize() {
   state.loading = true;
   state.error = null;
   state.result = null;
+  resetGrounding();
   els.summarizeBtn.disabled = true;
   els.summarizeBtn.textContent = 'Summarizing…';
   renderOutput();
@@ -117,6 +123,45 @@ async function summarize() {
     els.summarizeBtn.textContent = 'Summarize';
     renderOutput();
   }
+
+  // Phase 2.1. Runs after the summary is already on screen, in its own request.
+  // Deliberately not awaited inside the try above: the summary must render
+  // whether or not grounding succeeds.
+  if (state.result) checkGrounding(request.sourceText, state.result.patientSummary);
+}
+
+// Never throws and never sets state.error — a grounding failure degrades to a
+// small notice beside the summary, never to a missing summary.
+async function checkGrounding(sourceText, patientSummary) {
+  state.grounding = null;
+  state.groundingStatus = 'checking';
+  renderOutput();
+
+  try {
+    const res = await fetch('/api/check-grounding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceText, patientSummary }),
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data || !Array.isArray(data.claims)) {
+      state.groundingStatus = 'failed';
+    } else {
+      state.grounding = data;
+      state.groundingStatus = 'done';
+    }
+  } catch {
+    state.groundingStatus = 'failed';
+  }
+
+  renderOutput();
+}
+
+function resetGrounding() {
+  state.grounding = null;
+  state.groundingStatus = 'idle';
 }
 
 function activeDoc() {
@@ -218,6 +263,8 @@ function renderOutput() {
     return;
   }
 
+  if (state.result.demo) wrap0Notice(els.outputBody);
+
   const detected = state.result.documentType;
   els.outputSub.textContent = detected
     ? `Detected: ${detected}`
@@ -228,12 +275,113 @@ function renderOutput() {
 
   if (state.view === 'patient') {
     wrap.classList.add('output--patient');
-    renderPatientSummary(wrap, state.result.patientSummary, state.result.glossary);
+    const ungrounded = ungroundedClaims();
+    const matched = new Set();
+    // The status strip goes in the panel, not inside .output. renderPatientSummary
+    // marks its first paragraph as the lead by checking that no <p> exists in its
+    // parent yet, and a status <p> in there would suppress that styling forever.
+    els.outputBody.append(buildGroundingStatus(ungrounded.length));
+    renderPatientSummary(wrap, state.result.patientSummary, state.result.glossary, ungrounded, matched);
+    const missed = ungrounded.filter((c) => !matched.has(c));
+    if (missed.length > 0) wrap.append(buildUnplacedClaims(missed));
   } else {
     renderClinicianHighlights(wrap, state.result.clinicianHighlights);
   }
 
   els.outputBody.append(wrap);
+}
+
+// A demo case's summary is hand-authored with a planted unsupported claim. It
+// must never read as something the model produced, so the notice is rendered
+// before anything else in the panel and is not dismissible.
+function wrap0Notice(parent) {
+  const p = document.createElement('p');
+  p.className = 'demo-notice';
+  p.textContent =
+    'Demonstration case. This summary was written by hand and contains one ' +
+    'deliberately unsupported statement, so the grounding check has something ' +
+    'to catch. It is not model output.';
+  parent.append(p);
+}
+
+function ungroundedClaims() {
+  if (!state.grounding || !Array.isArray(state.grounding.claims)) return [];
+  return state.grounding.claims.filter(
+    (c) => c && c.grounded === false && typeof c.text === 'string' && c.text.trim() !== ''
+  );
+}
+
+// A one-line strip above the summary saying what the check found. Without it,
+// "no amber" is ambiguous between "checked and clean" and "never checked".
+function buildGroundingStatus(ungroundedCount) {
+  const p = document.createElement('p');
+  p.className = 'grounding-status';
+
+  if (state.groundingStatus === 'checking') {
+    p.classList.add('grounding-status--pending');
+    p.textContent = 'Checking every statement against the source document…';
+    return p;
+  }
+
+  if (state.groundingStatus === 'failed') {
+    p.classList.add('grounding-status--failed');
+    p.textContent =
+      'The source-grounding check could not run, so nothing below has been verified against the source.';
+    return p;
+  }
+
+  if (state.groundingStatus !== 'done') {
+    p.classList.add('grounding-status--pending');
+    p.textContent = 'Not yet checked against the source document.';
+    return p;
+  }
+
+  if (ungroundedCount === 0) {
+    p.classList.add('grounding-status--clear');
+    p.textContent = 'Every statement below is supported by the source document.';
+    return p;
+  }
+
+  p.classList.add('grounding-status--flagged');
+  p.textContent =
+    ungroundedCount === 1
+      ? '1 statement below is not supported by the source document. It is highlighted; hover or select it for the reason.'
+      : `${ungroundedCount} statements below are not supported by the source document. They are highlighted; hover or select one for the reason.`;
+  return p;
+}
+
+// Any flagged claim whose text could not be located in the rendered summary is
+// listed here rather than dropped. A flag that silently disappears is
+// indistinguishable from no flag at all, which is the worst outcome for a
+// safety feature.
+function buildUnplacedClaims(claims) {
+  const section = document.createElement('section');
+  section.className = 'unplaced';
+
+  const heading = document.createElement('h3');
+  heading.textContent = 'Also flagged';
+  section.append(heading);
+
+  const note = document.createElement('p');
+  note.className = 'unplaced__note';
+  note.textContent =
+    'These statements were flagged as unsupported but could not be located in the text above.';
+  section.append(note);
+
+  const ul = document.createElement('ul');
+  for (const claim of claims) {
+    const li = document.createElement('li');
+    li.textContent = claim.text;
+    if (typeof claim.reason === 'string' && claim.reason.trim() !== '') {
+      const reason = document.createElement('span');
+      reason.className = 'unplaced__reason';
+      reason.textContent = ` — ${claim.reason}`;
+      li.append(reason);
+    }
+    ul.append(li);
+  }
+  section.append(ul);
+  return section;
 }
 
 function buildPlaceholder(message) {
@@ -255,7 +403,7 @@ function buildError(message) {
 // lines starting with "- " become list items. A short block with no ending
 // punctuation is treated as a section heading — a formatting heuristic only,
 // so a miss is cosmetic and never changes the words shown.
-function renderPatientSummary(parent, text, glossary) {
+function renderPatientSummary(parent, text, glossary, ungrounded = [], matched = new Set()) {
   const terms = normalizeGlossary(glossary);
   const lines = String(text).split('\n');
 
@@ -285,7 +433,7 @@ function renderPatientSummary(parent, text, glossary) {
     if (!activeSection && parent.querySelector('p') === null) {
       p.className = 'summary-lead';
     }
-    appendTextWithTerms(p, block, terms);
+    appendTextWithClaims(p, block, terms, ungrounded, matched);
     sectionTarget().append(p);
   };
 
@@ -294,7 +442,7 @@ function renderPatientSummary(parent, text, glossary) {
     const ul = document.createElement('ul');
     for (const item of listItems) {
       const li = document.createElement('li');
-      appendTextWithTerms(li, item, terms);
+      appendTextWithClaims(li, item, terms, ungrounded, matched);
       ul.append(li);
     }
     listItems = [];
@@ -382,6 +530,65 @@ function buildGlossary(terms) {
  * definition containing markup stays inert.
  * ------------------------------------------------------------------ */
 
+// Splits a block of summary text on any ungrounded claim it contains, wrapping
+// those ranges in an amber span carrying the reason. Everything — highlighted
+// or not — still goes through appendTextWithTerms, so glossary definitions
+// survive inside a flagged claim.
+//
+// Claim text and reason both reach the DOM via textContent and setAttribute.
+// Neither parses HTML, so a claim or reason containing markup stays inert.
+function appendTextWithClaims(parent, text, terms, ungrounded, matched) {
+  if (!ungrounded || ungrounded.length === 0) {
+    appendTextWithTerms(parent, text, terms);
+    return;
+  }
+
+  // Locate each flagged claim in this block. Longest first, so a claim that
+  // contains another does not get carved up by it.
+  const ranges = [];
+  for (const claim of [...ungrounded].sort((a, b) => b.text.length - a.text.length)) {
+    const needle = claim.text.trim();
+    if (needle === '') continue;
+    const index = text.indexOf(needle);
+    if (index === -1) continue;
+    if (ranges.some((r) => index < r.end && index + needle.length > r.start)) continue;
+    ranges.push({ start: index, end: index + needle.length, claim });
+    matched.add(claim);
+  }
+
+  if (ranges.length === 0) {
+    appendTextWithTerms(parent, text, terms);
+    return;
+  }
+
+  ranges.sort((a, b) => a.start - b.start);
+
+  let cursor = 0;
+  for (const range of ranges) {
+    if (range.start > cursor) {
+      appendTextWithTerms(parent, text.slice(cursor, range.start), terms);
+    }
+
+    const mark = document.createElement('mark');
+    mark.className = 'claim claim--ungrounded';
+    mark.setAttribute('tabindex', '0');
+    const reason =
+      typeof range.claim.reason === 'string' && range.claim.reason.trim() !== ''
+        ? range.claim.reason
+        : 'This statement is not supported by the source document.';
+    mark.setAttribute('title', `Not supported by the source: ${reason}`);
+    mark.setAttribute('aria-label', `Unsupported statement. ${reason}`);
+    appendTextWithTerms(mark, text.slice(range.start, range.end), terms);
+    parent.append(mark);
+
+    cursor = range.end;
+  }
+
+  if (cursor < text.length) {
+    appendTextWithTerms(parent, text.slice(cursor), terms);
+  }
+}
+
 function normalizeGlossary(glossary) {
   if (!Array.isArray(glossary)) return [];
 
@@ -454,6 +661,7 @@ els.docSelect.addEventListener('change', () => {
   state.activeDocId = els.docSelect.value;
   state.result = null;
   state.error = null;
+  resetGrounding();
   renderSource();
   renderOutput();
 });

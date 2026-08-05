@@ -21,6 +21,7 @@ import {
 } from './_lib/http.js';
 import { checkRateLimit } from './_lib/rate-limit.js';
 import { resolveApiKey } from './_lib/config.js';
+import { DEMO_CASES } from './_lib/demo-cases.js';
 
 const MODEL = 'claude-opus-5';
 const MAX_TOKENS = 16000;
@@ -76,6 +77,22 @@ export default async function handler(req, res) {
   if (sourceText.length > MAX_SOURCE_TEXT) {
     return res.status(400).json({
       error: `sourceText is too long. Limit is ${MAX_SOURCE_TEXT} characters.`,
+    });
+  }
+
+  // Demo case: the summary is hand-authored and contains a deliberately
+  // planted unsupported claim. It is NOT model output, and both the header and
+  // the `demo` flag say so, so nothing downstream can present it as such.
+  const demo = DEMO_CASES[documentId];
+  if (demo) {
+    logEvent('summarize', { documentId, outcome: 'demo_case' });
+    res.setHeader('X-Shepherd-Demo-Case', '1');
+    return res.status(200).json({
+      documentType: demo.documentType,
+      patientSummary: demo.patientSummary,
+      clinicianHighlights: demo.clinicianHighlights,
+      glossary: demo.glossary,
+      demo: true,
     });
   }
 

@@ -14,6 +14,7 @@
 import { createRequire } from 'node:module';
 
 import { applySecurityHeaders, isSameOrigin } from './_lib/http.js';
+import { DEMO_CASES } from './_lib/demo-cases.js';
 
 const require = createRequire(import.meta.url);
 const seed = require('../data/seed.json');
@@ -30,8 +31,16 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Cross-origin requests are not allowed.' });
   }
 
-  return res.status(200).json({
-    notice: seed.notice,
-    documents: seed.documents.map(({ id, label, sourceText }) => ({ id, label, sourceText })),
-  });
+  const documents = seed.documents.map(({ id, label, sourceText }) => ({ id, label, sourceText }));
+
+  // Demo cases reuse a real seed document as their source; only the summary is
+  // hand-authored. `demo: true` tells the UI to label them, so a planted
+  // fabrication is never mistaken for live model output.
+  for (const [id, demo] of Object.entries(DEMO_CASES)) {
+    const source = seed.documents.find((d) => d.id === demo.sourceDocumentId);
+    if (!source) continue;
+    documents.push({ id, label: demo.label, sourceText: source.sourceText, demo: true });
+  }
+
+  return res.status(200).json({ notice: seed.notice, documents });
 }

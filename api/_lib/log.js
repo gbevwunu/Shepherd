@@ -18,6 +18,9 @@ export function logEvent(event, fields = {}) {
     // PDF extraction: counts only, never extracted content.
     pages: fields.pages,
     chars: fields.chars,
+    // Grounding: counts only, never claim text or reasons.
+    claimCount: fields.claimCount,
+    ungroundedCount: fields.ungroundedCount,
   };
 
   for (const key of Object.keys(safe)) {
