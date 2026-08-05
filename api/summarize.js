@@ -1,18 +1,35 @@
 // POST /api/summarize
 //
-// Phase 1, build step 2: returns hardcoded JSON in the response shape the
-// frontend is built against. No model call yet — step 4 swaps the fixture
-// lookup for a real one behind this same contract, so the frontend does
-// not change.
-//
 // Request:  { documentId: string, sourceText: string }
 // Response: { patientSummary: string,
 //             clinicianHighlights: string[],
-//             glossary?: [{ term: string, plain: string }] }
+//             glossary: [{ term: string, plain: string }] }
+//
+// The API key is read from process.env inside this handler. It is never sent to
+// the browser, never logged, and never included in an error body.
 
+import Anthropic from '@anthropic-ai/sdk';
+
+import { SYSTEM_PROMPT, buildUserMessage, RESPONSE_SCHEMA } from './_lib/prompt.js';
 import { FIXTURES } from './_lib/fixtures.js';
+import { logEvent } from './_lib/log.js';
+
+const MODEL = 'claude-opus-5';
+const MAX_TOKENS = 16000;
+
+// Thinking depth and overall token spend. 'low' and 'medium' are strong on this
+// model; 'medium' is the starting point here because the demo is latency-
+// sensitive and the task is a transformation rather than open-ended reasoning.
+// Raise to 'high' if the patient summary reads thin.
+const EFFORT = process.env.SHEPHERD_EFFORT || 'medium';
 
 const MAX_SOURCE_TEXT = 20000;
+
+// Client timeout is set well inside the function's maxDuration (60s in
+// vercel.json) so a slow upstream call fails with a clean message rather than
+// being killed mid-flight. One retry: 25s x 2 attempts stays under the ceiling.
+const REQUEST_TIMEOUT_MS = 25000;
+const MAX_RETRIES = 1;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -35,21 +52,182 @@ export default async function handler(req, res) {
     });
   }
 
-  const fixture = FIXTURES[documentId];
-  if (!fixture) {
-    // Only meaningful while the endpoint is stubbed. Once the model is wired
-    // in, any document is summarizable and this branch goes away.
-    return res.status(400).json({
-      error: 'Unknown documentId. The stubbed endpoint only serves the seed documents.',
+  // Offline demo mode. Serves the pre-written fixtures instead of calling the
+  // model, for rehearsing without a network. Marked in the response headers so
+  // fixture output is never mistaken for model output.
+  if (process.env.SHEPHERD_USE_FIXTURES === '1') {
+    const fixture = FIXTURES[documentId];
+    if (!fixture) {
+      return res.status(400).json({
+        error: 'Offline demo mode is on, and this document has no stored example.',
+      });
+    }
+    logEvent('summarize', { documentId, outcome: 'fixture' });
+    res.setHeader('X-Shepherd-Stub', '1');
+    return res.status(200).json(fixture);
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    logEvent('summarize', { documentId, outcome: 'no_api_key' });
+    return res.status(503).json({
+      error: 'The summarizer is not configured on the server. No AI key is set.',
     });
   }
 
-  // Marks the response as stub output without altering the JSON shape.
-  res.setHeader('X-Shepherd-Stub', '1');
-
-  return res.status(200).json({
-    patientSummary: fixture.patientSummary,
-    clinicianHighlights: fixture.clinicianHighlights,
-    glossary: fixture.glossary,
+  const client = new Anthropic({
+    apiKey,
+    timeout: REQUEST_TIMEOUT_MS,
+    maxRetries: MAX_RETRIES,
   });
+
+  const startedAt = Date.now();
+
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: SYSTEM_PROMPT,
+      thinking: { type: 'adaptive' },
+      output_config: {
+        effort: EFFORT,
+        format: { type: 'json_schema', schema: RESPONSE_SCHEMA },
+      },
+      messages: [{ role: 'user', content: buildUserMessage(sourceText) }],
+    });
+
+    // Check stop_reason before touching content — a refusal returns HTTP 200
+    // with empty or partial content, so indexing content[0] first would throw.
+    if (response.stop_reason === 'refusal') {
+      logEvent('summarize', {
+        documentId,
+        sourceChars: sourceText.length,
+        durationMs: Date.now() - startedAt,
+        outcome: 'refusal',
+      });
+      return res.status(502).json({
+        error: 'The summary could not be generated for this document. Try a different document.',
+      });
+    }
+
+    if (response.stop_reason === 'max_tokens') {
+      logEvent('summarize', {
+        documentId,
+        sourceChars: sourceText.length,
+        durationMs: Date.now() - startedAt,
+        outcome: 'truncated',
+      });
+      return res.status(502).json({
+        error: 'The summary was cut off before it finished. Try again.',
+      });
+    }
+
+    const text = response.content
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('');
+
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      logEvent('summarize', {
+        documentId,
+        sourceChars: sourceText.length,
+        durationMs: Date.now() - startedAt,
+        outcome: 'unparseable',
+      });
+      return res.status(502).json({
+        error: 'The summary came back in an unexpected format. Try again.',
+      });
+    }
+
+    const result = normalize(parsed);
+    if (!result) {
+      logEvent('summarize', {
+        documentId,
+        sourceChars: sourceText.length,
+        durationMs: Date.now() - startedAt,
+        outcome: 'bad_shape',
+      });
+      return res.status(502).json({
+        error: 'The summary came back incomplete. Try again.',
+      });
+    }
+
+    logEvent('summarize', {
+      documentId,
+      sourceChars: sourceText.length,
+      durationMs: Date.now() - startedAt,
+      outcome: 'ok',
+      stopReason: response.stop_reason,
+      inputTokens: response.usage?.input_tokens,
+      outputTokens: response.usage?.output_tokens,
+    });
+
+    return res.status(200).json(result);
+  } catch (err) {
+    return handleApiError(err, res, { documentId, startedAt, sourceChars: sourceText.length });
+  }
+}
+
+// Guards the response shape the frontend renders. Structured outputs make a
+// malformed body unlikely, but the frontend is the last place we want to find
+// out, so the contract is checked here rather than assumed.
+function normalize(parsed) {
+  if (!parsed || typeof parsed !== 'object') return null;
+  if (typeof parsed.patientSummary !== 'string' || parsed.patientSummary.trim() === '') return null;
+  if (!Array.isArray(parsed.clinicianHighlights)) return null;
+
+  const clinicianHighlights = parsed.clinicianHighlights
+    .filter((item) => typeof item === 'string' && item.trim() !== '');
+  if (clinicianHighlights.length === 0) return null;
+
+  const glossary = Array.isArray(parsed.glossary)
+    ? parsed.glossary.filter(
+        (entry) =>
+          entry &&
+          typeof entry.term === 'string' &&
+          typeof entry.plain === 'string' &&
+          entry.term.trim() !== ''
+      )
+    : [];
+
+  return { patientSummary: parsed.patientSummary, clinicianHighlights, glossary };
+}
+
+// Maps upstream failures onto clean client-facing messages. No stack traces, no
+// upstream error text, and nothing that could echo the key back.
+function handleApiError(err, res, { documentId, startedAt, sourceChars }) {
+  const durationMs = Date.now() - startedAt;
+  let status = 502;
+  let message = 'The summary could not be generated right now. Try again.';
+  let outcome = 'api_error';
+
+  if (err instanceof Anthropic.AuthenticationError) {
+    status = 503;
+    message = 'The summarizer is not configured correctly on the server.';
+    outcome = 'auth_error';
+  } else if (err instanceof Anthropic.RateLimitError) {
+    status = 429;
+    message = 'Too many requests right now. Wait a moment and try again.';
+    outcome = 'rate_limited';
+  } else if (err instanceof Anthropic.APIConnectionTimeoutError) {
+    status = 504;
+    message = 'The summary took too long to generate. Try again.';
+    outcome = 'timeout';
+  } else if (err instanceof Anthropic.APIConnectionError) {
+    status = 504;
+    message = 'Could not reach the summarizing service. Try again.';
+    outcome = 'connection_error';
+  } else if (err instanceof Anthropic.APIError) {
+    outcome = 'api_error';
+  } else {
+    status = 500;
+    message = 'Something went wrong generating the summary.';
+    outcome = 'unexpected_error';
+  }
+
+  logEvent('summarize', { documentId, sourceChars, durationMs, outcome, status });
+  return res.status(status).json({ error: message });
 }
