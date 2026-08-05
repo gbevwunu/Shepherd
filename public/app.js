@@ -263,6 +263,8 @@ function renderOutput() {
     return;
   }
 
+  if (state.result.demo) wrap0Notice(els.outputBody);
+
   const detected = state.result.documentType;
   els.outputSub.textContent = detected
     ? `Detected: ${detected}`
@@ -284,6 +286,19 @@ function renderOutput() {
   }
 
   els.outputBody.append(wrap);
+}
+
+// A demo case's summary is hand-authored with a planted unsupported claim. It
+// must never read as something the model produced, so the notice is rendered
+// before anything else in the panel and is not dismissible.
+function wrap0Notice(parent) {
+  const p = document.createElement('p');
+  p.className = 'demo-notice';
+  p.textContent =
+    'Demonstration case. This summary was written by hand and contains one ' +
+    'deliberately unsupported statement, so the grounding check has something ' +
+    'to catch. It is not model output.';
+  parent.append(p);
 }
 
 function ungroundedClaims() {

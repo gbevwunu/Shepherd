@@ -16,32 +16,63 @@ function isStructural(line) {
 }
 
 // Splits the patient summary into individual claims. A claim is one sentence,
-// or one bullet. Bullets are kept whole because "Take amoxicillin-clavulanate,
-// 875/125 mg, twice a day for 5 days" is a single assertion even though it
-// contains no sentence break.
+// or one bullet.
+//
+// Wrapped lines are joined before sentence-splitting, exactly as the renderer
+// joins them for display. Without that, a hard-wrapped summary yields fragments
+// ("You should also rest in bed for two full weeks and avoid all physical" /
+// "activity until then.") — which are bad input for a grounding judgement and
+// cannot be highlighted as a unit. Claim boundaries must match what the reader
+// sees on screen.
+//
+// Bullets are kept whole because "Take amoxicillin-clavulanate, 875/125 mg,
+// twice a day for 5 days" is a single assertion despite having no sentence
+// break.
 export function splitClaims(summary) {
   const claims = [];
+  let paragraph = [];
+
+  const flush = () => {
+    if (paragraph.length === 0) return;
+    const block = paragraph.join(' ').replace(/\s+/g, ' ').trim();
+    paragraph = [];
+    if (block === '') return;
+
+    // Sentence split that does not break on decimals ("38.5") or on the period
+    // inside a dose like "875/125 mg."
+    const sentences = block
+      .split(/(?<=[.!?])\s+(?=[A-Z"'(])/)
+      .map((x) => x.trim())
+      .filter((x) => x !== '');
+
+    for (const sentence of sentences) claims.push(sentence);
+  };
 
   for (const rawLine of String(summary).split('\n')) {
     const line = rawLine.trim();
-    if (isStructural(line)) continue;
+
+    if (line === '') {
+      flush();
+      continue;
+    }
 
     if (line.startsWith('- ')) {
+      flush();
       const item = line.slice(2).trim();
       if (item !== '') claims.push(item);
       continue;
     }
 
-    // Sentence split that does not break on decimals ("38.5"), on common
-    // clinical abbreviations, or on the period inside "875/125 mg."
-    const sentences = line
-      .split(/(?<=[.!?])\s+(?=[A-Z"'(])/)
-      .map((s) => s.trim())
-      .filter((s) => s !== '');
+    // A section heading ends the preceding paragraph and is not itself a claim.
+    if (isStructural(line)) {
+      flush();
+      continue;
+    }
 
-    for (const sentence of sentences) claims.push(sentence);
+    paragraph.push(line);
   }
 
+  flush();
   return claims;
 }
 
